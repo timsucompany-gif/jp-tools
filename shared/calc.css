@@ -401,42 +401,43 @@ input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-of
   margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 
 /* ============================================================
-   精算模式：一段住宿一列，摺疊
+   精算模式：一段一張摺疊卡，並排
    ------------------------------------------------------------
-   分段是為了算對（不同城市稅不同），不是為了佔版面。
-   四段全部攤開會變成四個螢幕高，所以預設收合成一列，
-   並把「城市」提到列上 —— 那是分段最主要的理由，不該藏在展開裡。
+   分段是為了算對（不同城市稅不同、開車與搭車完全兩套費用），
+   不是為了佔版面。所以收合並排，正在編輯的那段才跨滿整行。
+   住宿與交通共用這一套。
    ============================================================ */
-/* 收合的段並排成欄，寬度不夠就自動掉成一欄 —— 不需要為手機另寫一套版面。
-   正在編輯的那一段跨滿整行，表單才有呼吸空間。
-   這樣「四段的城市同時可見可改」跟「並排比較」兩件事可以並存 ——
-   換成分頁的話，設四個城市要點四次，那是最不該犧牲的操作。 */
-#detail-stay{display:grid;gap:10px;align-items:start;
+.seg-grid{display:grid;gap:10px;align-items:start;
   grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.stay-seg{border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;min-width:0}
-.stay-seg.open{border-color:var(--c-stay);grid-column:1 / -1}
-/* 收合狀態在窄欄裡：城市與小計各自換行 */
-.stay-seg:not(.open) .seg-hd{flex-wrap:wrap;gap:6px 10px}
-.stay-seg:not(.open) .seg-city{flex:1 1 100%;order:3}
-.stay-seg:not(.open) .seg-city select{width:100%;min-width:0}
-.stay-seg:not(.open) .seg-sub{margin-left:auto;flex:0 0 auto}
-/* 展開時表單維持雙欄；收合中的窄欄不會用到這條 */
-.stay-seg.open .seg-body .grid.g2{grid-template-columns:1fr}
-@media (min-width:640px){ .stay-seg.open .seg-body .grid.g2{grid-template-columns:1fr 1fr} }
+.cost-seg{border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;min-width:0}
+.cost-seg.open{grid-column:1 / -1}
+.cat.is-stay .cost-seg.open{border-color:var(--c-stay)}
+.cat.is-move .cost-seg.open{border-color:var(--c-move)}
 .seg-hd{display:flex;align-items:center;gap:10px;padding:9px 12px;flex-wrap:wrap}
 .seg-toggle{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px;
-  background:none;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;color:var(--c-stay)}
-.seg-toggle:focus-visible{outline:2px solid var(--c-stay);outline-offset:3px;border-radius:4px}
+  background:none;border:0;padding:0;font:inherit;cursor:pointer;text-align:left}
+.cat.is-stay .seg-toggle{color:var(--c-stay)}
+.cat.is-move .seg-toggle{color:var(--c-move)}
+.seg-toggle:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:4px}
 .seg-caret{flex:none;font-size:11px;transition:transform .15s;display:inline-block}
-.stay-seg.open .seg-caret{transform:rotate(90deg)}
+.cost-seg.open .seg-caret{transform:rotate(90deg)}
 .seg-name{font-size:14.5px;font-weight:700;white-space:nowrap}
-.seg-nights{font-size:12px;color:var(--ink-3);font-weight:400}
+.seg-nights{font-size:12px;color:var(--ink-3);font-weight:400;white-space:nowrap}
 .seg-city{flex:0 0 auto}
 .seg-city select{width:auto;min-width:120px;font-size:13.5px;padding:5px 8px}
 .seg-sub{flex:0 0 auto;font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;
-  margin-left:auto;text-align:right;white-space:nowrap}
+  margin-left:auto;text-align:right;white-space:nowrap;color:var(--text-dark-gray)}
 .seg-sub .twd{display:block;font-size:11px}
 .seg-body{padding:2px 12px 14px;border-top:1px dashed var(--line);margin-top:2px}
+
+/* 收合狀態在窄欄裡：城市與小計各自換行 */
+.cost-seg:not(.open) .seg-hd{flex-wrap:wrap;gap:6px 10px}
+.cost-seg:not(.open) .seg-city{flex:1 1 100%;order:3}
+.cost-seg:not(.open) .seg-city select{width:100%;min-width:0}
+.cost-seg:not(.open) .seg-sub{margin-left:auto;flex:0 0 auto}
+/* 展開時表單維持雙欄 */
+.cost-seg.open .seg-body .grid.g2{grid-template-columns:1fr}
+@media (min-width:640px){ .cost-seg.open .seg-body .grid.g2{grid-template-columns:1fr 1fr} }
 @media (max-width:520px){
   .seg-hd{gap:6px 10px}
   .seg-sub{margin-left:auto;flex:0 0 auto;text-align:right}
@@ -450,5 +451,6 @@ input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-of
 .mix-nm:hover{background:var(--tint-blue);color:var(--blue-ink)}
 .mix-row.is-stay .mix-nm:hover{background:var(--c-stay-bg);color:var(--c-stay)}
 .mix-row.is-food .mix-nm:hover{background:var(--c-food-bg);color:var(--c-food)}
+.mix-row.is-move .mix-nm:hover{background:var(--c-move-bg);color:var(--c-move)}
 .mix-hint{font-size:12.5px;color:var(--ink-3);line-height:1.7;margin:0 0 10px}
 .mix-hint b{color:var(--ink-2)}
