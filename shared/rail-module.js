@@ -45,26 +45,53 @@
         "<div></div>" +
       "</div>";
 
-    /* 每個區間一列：勾選 ＋ 單程／來回 */
-    var rows = Object.keys(R.railLegs).map(function (k) {
+    /* 區間清單分三組。區內移動依地區過濾 —— 關西行程不該看到一堆東北路線；
+       機場往返與跨區長程一律顯示，因為那不受「主要待哪一區」限制
+       （東京進大阪出的人兩邊機場都會用到）。 */
+    var GROUPS = [
+      { key: "airport", title: "機場往返",       filter: false },
+      { key: "local",   title: "區內移動",       filter: true  },
+      { key: "long",    title: "跨區長程（新幹線）", filter: false }
+    ];
+
+    function legRow(k) {
       var L = R.railLegs[k];
       return '<li class="leg">' +
         '<label class="leg-pick">' +
           '<input type="checkbox" class="km-leg" data-leg="' + k + '">' +
-          '<span class="leg-nm">' + L.label + '<em>' + C.yen(L.fare) + ' ／人／單程</em></span>' +
+          '<span class="leg-nm">' + L.label +
+            "<em>" + C.fmtMain(L.fare) + " ／人／單程" +
+            (L.note ? "　" + L.note : "") + "</em>" +
+          "</span>" +
         "</label>" +
         '<select class="km-trips" data-leg="' + k + '" disabled>' +
           '<option value="1">單程</option><option value="2" selected>來回</option>' +
         "</select>" +
       "</li>";
-    }).join("");
+    }
+
+    function legsHTML(regionKey) {
+      return GROUPS.map(function (g) {
+        var keys = Object.keys(R.railLegs).filter(function (k) {
+          var L = R.railLegs[k];
+          if (L.group !== g.key) return false;
+          if (!g.filter) return true;
+          return L.region === regionKey;
+        });
+        if (!keys.length) return "";
+        return '<div class="leg-group" data-group="' + g.key + '">' +
+                 '<span class="leg-group-hd">' + g.title + "</span>" +
+                 '<ul class="legs">' + keys.map(legRow).join("") + "</ul>" +
+               "</div>";
+      }).join("");
+    }
 
     var form = el(
       "<div>" + ownFields +
       '<span class="fld">這趟會搭哪些區間</span>' +
-      '<ul class="legs">' + rows + "</ul>" +
-      '<p class="hint">只列常見的長程區間。Pass 划不划算主要由長程決定，' +
-      "所以當地的零星移動另外算（見下）。</p>" +
+      '<div id="km-legs"></div>' +
+      '<p class="hint">區內移動會依你選的地區顯示。' +
+      "Pass 划不划算主要由長程決定，當地的零星移動另外算（見下）。</p>" +
 
       '<div style="margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)">' +
         '<span class="fld">到了當地之後</span>' +
@@ -129,6 +156,8 @@
         lastRegion = ctx.region;
         C.moneySet($("km-local"), reg.localPerDay || 0);
       }
+
+      rebuildLegs(ctx.region);
 
       result = C.rail({
         people: ctx.people, legs: readLegs(), tripDays: ctx.tripDays,
@@ -262,18 +291,41 @@
       });
     }
 
-    Array.prototype.forEach.call(host.querySelectorAll(".km-leg, .km-trips"), function (e) {
-      e.addEventListener("change", run);
-    });
+    /* 換地區要重建清單（區內移動那組會變）。
+       重建會丟掉勾選狀態，所以先記下來、重建後還原 —— 
+       使用者改個地區就被清空勾選是很煩的。 */
+    var lastLegRegion = null;
+    function rebuildLegs(regionKey) {
+      if (regionKey === lastLegRegion) return;
+      var keep = readLegs();
+      lastLegRegion = regionKey;
+      $("km-legs").innerHTML = legsHTML(regionKey);
+
+      Array.prototype.forEach.call(host.querySelectorAll(".km-leg"), function (cb) {
+        var k = cb.getAttribute("data-leg");
+        if (keep[k]) {
+          cb.checked = true;
+          var sel = host.querySelector('.km-trips[data-leg="' + k + '"]');
+          if (sel) sel.value = keep[k];
+        }
+        cb.addEventListener("change", run);
+      });
+      Array.prototype.forEach.call(host.querySelectorAll(".km-trips"), function (e) {
+        e.addEventListener("change", run);
+      });
+
+      /* 完全沒勾的話，先勾該地區最典型的一段，讓畫面一打開就有結論 */
+      if (!Object.keys(keep).length) {
+        var def = R.railDefaultLeg[regionKey];
+        var d = def && host.querySelector('.km-leg[data-leg="' + def + '"]');
+        if (d) d.checked = true;
+      }
+    }
     ["km-people", "km-days", "km-region", "km-local", "km-extra"].forEach(function (id) {
       if (!$(id)) return;
       $(id).addEventListener("input", run);
       $(id).addEventListener("change", run);
     });
-
-    /* 預設勾一個最常見的區間，讓頁面一打開就有結論可看 */
-    var first = host.querySelector('.km-leg[data-leg="tokyo_osaka"]');
-    if (first) { first.checked = true; }
 
     run();
 

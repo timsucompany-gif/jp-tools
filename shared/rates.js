@@ -178,51 +178,53 @@
       half: { label: "一泊二食", cover: 0.65 }
     },
 
-    /* ---------- 鐵路：常見區間單程票價（¥／人，指定席）----------
-       region 用來判斷地區版 Pass 適不適用；"cross" 代表跨區。
-       ⚠️ 票價全部未查證。 */
     /* ---------- 鐵路：常見區間單程票價（¥／人）----------
-       ✅ 已查證（2026-09）：普通車指定席、通常期，運賃＋特急料金的合計。
-       指定席在閑散期 −200、繁忙期 +200、最繁忙期 +400，這裡一律用通常期。
-       region 用來判斷地區版 Pass 適不適用；"cross" 代表跨區。
-       ⚠️ region 標記是粗略的：東京→長野實際上 JR East 的 Pass 有涵蓋，
-          但本表的地區版資料還不夠細，先保守標成 cross（只讓全國版適用），
-          寧可少推薦，不要推薦到用不了的 Pass。 */
+       ✅ 已查證（2026-09）。新幹線與特急為普通車指定席、通常期，運賃＋特急料金；
+       在來線為普通運賃。指定席在閑散期 −200、繁忙期 +200、最繁忙期 +400。
+
+       group 分三類，這是這張表最重要的結構：
+         airport  機場往返 —— 不分地區都會用到，一律顯示
+         local    區內移動 —— 依所選地區過濾，不然關西行程會看到一堆東北路線
+         long     跨區長程 —— 新幹線，一律顯示（那才是 Pass 划不划算的關鍵）
+
+       ⚠️ 原本這張表「只有」跨區新幹線，等於假設每個人都要坐新幹線。
+          但關西玩五天的人可能一趟都不搭 —— 區內移動 420～820 圓，
+          跟東京→新大阪的 14,720 差了一個數量級，Pass 當然不可能回本。
+
+       ⚠️ JR東日本 2026 年 3 月調整過首都圈運賃，關東的在來線票價要優先重查。 */
     railLegs: {
-      nrt_tokyo:        { label: "成田機場 → 東京市區",   fare: 3070,  region: "kanto",    verified: true, note: "N'EX：乘車券 1,340 ＋ 特急券 1,730" },
-      kix_osaka:        { label: "關西機場 → 大阪市區",   fare: 1210,  region: "kansai",   verified: true, note: "關空快速" },
-      tokyo_nagano:     { label: "東京 → 長野",           fare: 8450,  region: "cross",    verified: true, note: "北陸新幹線。かがやき／はくたか／あさま 同價" },
-      tokyo_nagoya:     { label: "東京 → 名古屋",         fare: 11300, region: "cross",    verified: true },
-      tokyo_sendai:     { label: "東京 → 仙台",           fare: 11630, region: "cross",    verified: true },
-      tokyo_kyoto:      { label: "東京 → 京都",           fare: 14170, region: "cross",    verified: true },
-      tokyo_kanazawa:   { label: "東京 → 金沢",           fare: 14600, region: "cross",    verified: true },
-      tokyo_osaka:      { label: "東京 → 新大阪",         fare: 14720, region: "cross",    verified: true },
-      tokyo_hakata:     { label: "東京 → 博多",           fare: 23810, region: "cross",    verified: true },
-      osaka_hiroshima:  { label: "新大阪 → 廣島",         fare: 10950, region: "chugoku",  verified: true },
-      hakata_kagoshima: { label: "博多 → 鹿児島中央",     fare: 10640, region: "kyushu",   verified: true, note: "みずほ／さくら／つばめ 同價" },
-      sapporo_hakodate: { label: "札幌 → 函館",           fare: 9770,  region: "hokkaido", verified: true, note: "特急北斗，全車指定席" }
+      /* --- 機場往返 --- */
+      nrt_tokyo:   { label: "成田機場 ⇄ 東京市區", fare: 3070, group: "airport", region: "kanto",  verified: true, note: "N'EX：乘車券 1,340 ＋ 特急券 1,730" },
+      hnd_tokyo:   { label: "羽田機場 ⇄ 浜松町",   fare: 520,  group: "airport", region: "kanto",  verified: true, note: "東京單軌電車，2024-03 調整後" },
+      kix_osaka:   { label: "關西機場 ⇄ 大阪市區", fare: 1210, group: "airport", region: "kansai", verified: true, note: "關空快速" },
+
+      /* --- 區內移動（依地區過濾）--- */
+      osaka_kyoto: { label: "大阪 ⇄ 京都",   fare: 580, group: "local", region: "kansai", verified: true, note: "JR京都線 新快速" },
+      osaka_kobe:  { label: "大阪 ⇄ 三ノ宮", fare: 420, group: "local", region: "kansai", verified: true, note: "JR神戶線" },
+      kyoto_nara:  { label: "京都 ⇄ 奈良",   fare: 720, group: "local", region: "kansai", verified: true, note: "JR奈良線 みやこ路快速" },
+      osaka_nara:  { label: "大阪 ⇄ 奈良",   fare: 820, group: "local", region: "kansai", verified: true, note: "JR大和路線 大和路快速" },
+      tokyo_yokohama: { label: "東京 ⇄ 橫濱", fare: 530, group: "local", region: "kanto", verified: true, note: "⚠️ 2026-03 首都圈調價，需重查" },
+
+      /* --- 跨區長程（新幹線／特急）--- */
+      tokyo_nagano:     { label: "東京 → 長野",       fare: 8450,  group: "long", region: "cross",    verified: true, note: "北陸新幹線。かがやき／はくたか／あさま 同價" },
+      tokyo_nagoya:     { label: "東京 → 名古屋",     fare: 11300, group: "long", region: "cross",    verified: true },
+      tokyo_sendai:     { label: "東京 → 仙台",       fare: 11630, group: "long", region: "cross",    verified: true },
+      tokyo_kyoto:      { label: "東京 → 京都",       fare: 14170, group: "long", region: "cross",    verified: true },
+      tokyo_kanazawa:   { label: "東京 → 金沢",       fare: 14600, group: "long", region: "cross",    verified: true },
+      tokyo_osaka:      { label: "東京 → 新大阪",     fare: 14720, group: "long", region: "cross",    verified: true },
+      tokyo_hakata:     { label: "東京 → 博多",       fare: 23810, group: "long", region: "cross",    verified: true },
+      osaka_hiroshima:  { label: "新大阪 → 廣島",     fare: 10950, group: "long", region: "chugoku",  verified: true },
+      hakata_kagoshima: { label: "博多 → 鹿児島中央", fare: 10640, group: "long", region: "kyushu",   verified: true, note: "みずほ／さくら／つばめ 同價" },
+      sapporo_hakodate: { label: "札幌 → 函館",       fare: 9770,  group: "long", region: "hokkaido", verified: true, note: "特急北斗，全車指定席" }
     },
 
-    /* ---------- 當地交通 ----------
-       JR Pass 蓋不到的那一段：私鐵、路線巴士、纜車。
-       買了 Pass 以為全包，到現場才發現要另外付錢 —— 這是很典型的漏算。
-
-       localPerDay（在 region 表裡）是地鐵、市內巴士這種零星移動的每日概估：
-       都市 800（相當於一張地鐵一日券），山區與度假區 1,500（一趟巴士就不只這個數）。
-       ⚠️ 這個每日值是估計，非逐項查證。
-
-       ✅ 已查證的參考價（2026-09），放在畫面提示裡讓使用者自己抓額外項目：
-         · 長野電鉄 長野 → 湯田中（地獄谷）單程 1,660
-         · 長電巴士 長野 → 地獄谷猴子公園 單程 1,160
-         · アルピコ交通 長野 → 白馬 單程 3,500
-         · 觀光纜車／ゴンドラ 來回 2,000–3,000
-           （石打丸山 2,000、箱根 2,500、野沢温泉長坂 2,500）*/
-    localExamples: [
-      { label: "長野電鉄 長野→湯田中（地獄谷）", fare: 1660, kind: "私鐵單程" },
-      { label: "長電巴士 長野→猴子公園",         fare: 1160, kind: "巴士單程" },
-      { label: "長野→白馬",                      fare: 3500, kind: "度假區巴士單程" },
-      { label: "觀光纜車／ゴンドラ",             fare: 2500, kind: "來回" }
-    ],
+    /* 各地區預設先勾的區間：讓頁面一打開就是合理情境，
+       不要讓關西行程看到「東京→新大阪」這種完全用不到的預設。 */
+    railDefaultLeg: {
+      hokkaido: "sapporo_hakodate", tohoku: "tokyo_sendai", kanto: "nrt_tokyo",
+      chubu: "tokyo_nagoya", kansai: "kix_osaka", chugoku: "osaka_hiroshima",
+      kyushu: "hakata_kagoshima", okinawa: null
+    },
 
     /* ---------- 鐵路 Pass ----------
        scope: "all" 全國版；否則是該地區專用。
