@@ -24,7 +24,7 @@
     var standalone = opts.standalone !== false;
 
     var regionOpts = Object.keys(R.region).map(function (k) {
-      return '<option value="' + k + '"' + (k === "kanto" ? " selected" : "") + ">" +
+      return '<option value="' + k + '"' + (k === "kansai" ? " selected" : "") + ">" +
              R.region[k].label + "</option>";
     }).join("");
 

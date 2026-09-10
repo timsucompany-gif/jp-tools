@@ -297,22 +297,26 @@ select:focus-visible,input:focus-visible{outline:2px solid var(--primary-fuji-bl
 .share-hd .v .twd{font-size:12px}
 
 .share-list{list-style:none;margin:0;padding:0}
-.share-row{padding:12px 0}
-.share-row + .share-row{border-top:1px solid #f0f3f6}
-.share-top{display:flex;align-items:baseline;gap:10px;margin-bottom:7px}
-.share-nm{flex:1;font-size:15px;font-weight:700;min-width:0}
-.share-amt{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-.share-amt .twd{display:inline;font-size:11.5px;margin-left:5px}
-.share-pct{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
-  color:var(--ink-3);min-width:38px;text-align:right}
+.share-row{padding:9px 0}
+.share-row + .share-row{border-top:1px solid #f5f7f9}
 
-.share-bar{position:relative;height:10px;border-radius:99px;background:#f0f3f6;overflow:hidden}
+/* 名稱固定寬度，讓三條讀條左邊對齊、上下相鄰 —— 分開太遠就看不出是同一組 */
+.share-line{display:flex;align-items:center;gap:10px}
+.share-nm{flex:0 0 46px;font-size:14px;font-weight:700;line-height:1.3}
+.share-bar{position:relative;flex:1 1 auto;height:11px;border-radius:99px;
+  background:#f0f3f6;overflow:hidden;min-width:60px}
 .share-fill{position:absolute;left:0;top:0;height:100%;border-radius:99px 0 0 99px;
   transition:width .35s ease-out}
 .share-err{position:absolute;top:0;height:100%;transition:left .35s ease-out,width .35s ease-out;
   background-image:repeating-linear-gradient(115deg,
     currentColor 0 3px, transparent 3px 7px);
   opacity:.34}
+.share-amt{flex:0 0 auto;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;
+  white-space:nowrap;text-align:right;line-height:1.3}
+.share-amt .twd{display:block;font-size:11px;margin-top:0}
+.share-pct{flex:0 0 34px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
+  color:var(--ink-3);text-align:right}
+
 .share-row.is-stay .share-fill{background:var(--c-stay)}
 .share-row.is-stay .share-err,.share-row.is-stay .share-nm{color:var(--c-stay)}
 .share-row.is-move .share-fill{background:var(--c-move)}
@@ -320,8 +324,9 @@ select:focus-visible,input:focus-visible{outline:2px solid var(--primary-fuji-bl
 .share-row.is-food .share-fill{background:var(--c-food)}
 .share-row.is-food .share-err,.share-row.is-food .share-nm{color:var(--c-food)}
 
-.share-meta{display:flex;gap:8px;align-items:baseline;margin-top:6px;flex-wrap:wrap}
-.share-note-row{flex:1;font-size:12px;color:var(--ink-3);line-height:1.6;min-width:0}
+/* 說明縮到讀條下方、對齊讀條起點，不要把三條撐開 */
+.share-meta{display:flex;gap:8px;align-items:baseline;margin:4px 0 0 56px;flex-wrap:wrap}
+.share-note-row{flex:1;font-size:11.5px;color:var(--ink-3);line-height:1.55;min-width:0}
 .share-flag{font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px;white-space:nowrap}
 .share-flag.done{color:var(--green-ink);background:#d9f0e3}
 .share-flag.can{color:var(--blue-ink);background:var(--tint-blue);cursor:pointer;border:0;font-family:inherit}
@@ -332,19 +337,31 @@ select:focus-visible,input:focus-visible{outline:2px solid var(--primary-fuji-bl
 
 /* ============================================================
    混搭分配：一趟旅行不會每天都一樣
-   欄位數量跟原本的單選差不多，但表達得出「兩天普通一天好」
+   ------------------------------------------------------------
+   ⚠️ 選擇器權重陷阱：全站的 `select,input[type=number]` 是 (0,1,1)，
+      比單一 class 的 (0,1,0) 高。所以這裡必須寫成
+      `input[type=number].mix-n`，不然 width:100% 會贏，
+      輸入框撐滿、標籤被擠成一個字一行。
+
+   版面改成「標籤在上、輸入在下」：住宿類型名稱有長有短
+   （「青年旅館／膠囊」vs「中價位飯店」），並排一定會擠爆。
    ============================================================ */
-.mix{display:grid;gap:8px;grid-template-columns:1fr 1fr;margin:0 0 8px}
-@media (min-width:640px){ .mix{grid-template-columns:repeat(3,1fr)} }
-.mix-row{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
-  border-radius:var(--radius-sm);padding:6px 9px;min-width:0}
-.mix-row.on{border-color:currentColor}
-.mix-nm{flex:1;font-size:13.5px;line-height:1.35;min-width:0;color:var(--ink-2)}
+.mix{display:grid;gap:9px;grid-template-columns:1fr 1fr;margin:0 0 10px}
+@media (min-width:560px){ .mix{grid-template-columns:repeat(3,1fr)} }
+@media (min-width:820px){ .mix{grid-template-columns:repeat(5,1fr)} }
+.mix-row{background:#fff;border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:9px 10px 8px;min-width:0}
+.mix-row.on{border-color:currentColor;background:#fff}
+.mix-nm{display:block;font-size:12.5px;line-height:1.4;color:var(--ink-2);
+  margin-bottom:6px;min-height:2.8em}
 .mix-row.on .mix-nm{font-weight:700}
-.mix-n{width:52px;flex:none;font-size:15px;padding:5px 6px;text-align:center;
-  border:1px solid var(--line);border-radius:6px;background:#fff;font-family:inherit;
-  font-variant-numeric:tabular-nums;color:var(--text-dark-gray)}
-.mix-n:focus-visible{outline:2px solid currentColor;outline-offset:1px}
+.mix-in{display:flex;align-items:center;gap:6px}
+input[type=number].mix-n{
+  flex:1 1 auto;width:auto;min-width:0;font-size:15px;padding:5px 4px;text-align:center;
+  border:1px solid var(--line);border-radius:6px;background:#fff;
+  font-variant-numeric:tabular-nums;color:var(--text-dark-gray);
+}
+input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-offset:1px}
 .mix-u{flex:none;font-size:12px;color:var(--ink-3)}
 .mix-sum{font-size:12.5px;color:var(--ink-3);margin:0 0 4px;line-height:1.7}
 .mix-sum b{color:var(--green-ink)}

@@ -28,7 +28,7 @@
 
     /* ---------- 產生表單 ---------- */
     var regionOpts = Object.keys(R.region).map(function (k) {
-      return '<option value="' + k + '"' + (k === "kyushu" ? " selected" : "") + '>' +
+      return '<option value="' + k + '"' + (k === "kansai" ? " selected" : "") + '>' +
              R.region[k].label + "</option>";
     }).join("");
 
@@ -119,7 +119,7 @@
     /* days   = 租車天數（決定租金、保險、停車晚數）
        tripDays = 整趟行程天數，只用來提醒「不是整趟都在開車」。
        兩者分開是因為很少有人整趟都租車 —— 混在一起會直接高估。 */
-    var ctx = { region: "kyushu", days: 3, tripDays: 3, people: 2, fx: R.fxDefault };
+    var ctx = { region: "kansai", days: 3, tripDays: 3, people: 2, fx: R.fxDefault };
     var lastRegion = null, lastDays = null, rentalTouched = false, result = null;
 
     C.moneyRegister($("rm-rental"), 0);

@@ -26,7 +26,7 @@
   ============================================================
 -->
 
-<link rel="stylesheet" href="../../shared/calc.css?v=20261006">
+<link rel="stylesheet" href="../../shared/calc.css?v=20261101">
 </head>
 <body>
 
@@ -157,9 +157,11 @@
         </div>
         <div class="mix" id="mix-move" style="margin-top:10px">
           <div class="mix-row on">
-            <span class="mix-nm" id="carDaysLbl">租車</span>
-            <input type="number" class="mix-n" id="w-cardays" min="0" max="30" step="1" value="0">
-            <span class="mix-u">天</span>
+            <label class="mix-nm" id="carDaysLbl" for="w-cardays">租車</label>
+            <span class="mix-in">
+              <input type="number" class="mix-n" id="w-cardays" min="0" max="30" step="1" value="0">
+              <span class="mix-u">天</span>
+            </span>
           </div>
         </div>
         <p class="hint" id="h-move"></p>
@@ -238,11 +240,11 @@
 
 </div>
 
-<script src="../../shared/rates.js?v=20261006"></script>
-<script src="../../shared/core.js?v=20261006"></script>
-<script src="../../shared/rental-module.js?v=20261006"></script>
-<script src="../../shared/lodging-module.js?v=20261006"></script>
-<script src="../../shared/rail-module.js?v=20261006"></script>
+<script src="../../shared/rates.js?v=20261101"></script>
+<script src="../../shared/core.js?v=20261101"></script>
+<script src="../../shared/rental-module.js?v=20261101"></script>
+<script src="../../shared/lodging-module.js?v=20261101"></script>
+<script src="../../shared/rail-module.js?v=20261101"></script>
 <script>
 (function () {
   "use strict";
@@ -251,7 +253,7 @@
 
   /* ---------- 動態產生選項 ---------- */
   $("w-region").innerHTML = Object.keys(R.region).map(function (k) {
-    return '<option value="' + k + '"' + (k === "kyushu" ? " selected" : "") + '>' + R.region[k].label + "</option>";
+    return '<option value="' + k + '"' + (k === "kansai" ? " selected" : "") + '>' + R.region[k].label + "</option>";
   }).join("");
   $("oUpdated").textContent = R.updated;
   $("oReview").textContent  = R.next_review;
@@ -261,10 +263,12 @@
   function mixUI(hostId, name, data, unit) {
     $(hostId).innerHTML = Object.keys(data).map(function (k) {
       return '<div class="mix-row is-' + name + '" data-k="' + k + '">' +
-               '<span class="mix-nm">' + data[k].label + "</span>" +
-               '<input type="number" class="mix-n" id="' + name + "-" + k +
-                 '" min="0" max="60" step="1" value="0" inputmode="numeric">' +
-               '<span class="mix-u">' + unit + "</span>" +
+               '<label class="mix-nm" for="' + name + "-" + k + '">' + data[k].label + "</label>" +
+               '<span class="mix-in">' +
+                 '<input type="number" class="mix-n" id="' + name + "-" + k +
+                   '" min="0" max="60" step="1" value="0" inputmode="numeric">' +
+                 '<span class="mix-u">' + unit + "</span>" +
+               "</span>" +
              "</div>";
     }).join("");
   }
@@ -561,18 +565,14 @@
       var li = document.createElement("li");
       li.className = "share-row is-" + p.group;
 
-      var top = document.createElement("div");
-      top.className = "share-top";
+      /* 名稱、讀條、金額同一行 —— 三條才會上下相鄰、左邊對齊，
+         看得出是同一組在互比。分開成上下兩段就變成三張各自的卡片。 */
+      var line = document.createElement("div");
+      line.className = "share-line";
+
       var nm = document.createElement("span");
       nm.className = "share-nm";
       nm.textContent = p.nm;
-      var amt = document.createElement("span");
-      amt.className = "share-amt";
-      C.setAmt(amt, p.amt, null, p.group + ":share");
-      var pc = document.createElement("span");
-      pc.className = "share-pct";
-      pc.textContent = Math.round(pct * 100) + "%";
-      top.appendChild(nm); top.appendChild(amt); top.appendChild(pc);
 
       var bar = document.createElement("div");
       bar.className = "share-bar";
@@ -585,6 +585,17 @@
       e.style.left  = (pct * 100).toFixed(1) + "%";
       e.style.width = (Math.min(err, 1 - pct) * 100).toFixed(1) + "%";
       bar.appendChild(fill); bar.appendChild(e);
+
+      var amt = document.createElement("span");
+      amt.className = "share-amt";
+      C.setAmt(amt, p.amt, null, p.group + ":share");
+
+      var pc = document.createElement("span");
+      pc.className = "share-pct";
+      pc.textContent = Math.round(pct * 100) + "%";
+
+      line.appendChild(nm); line.appendChild(bar);
+      line.appendChild(amt); line.appendChild(pc);
 
       var meta = document.createElement("div");
       meta.className = "share-meta";
@@ -617,7 +628,7 @@
       }
       meta.appendChild(flag);
 
-      li.appendChild(top); li.appendChild(bar); li.appendChild(meta);
+      li.appendChild(line); li.appendChild(meta);
       ul.appendChild(li);
     });
   }
