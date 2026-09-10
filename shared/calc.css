@@ -407,8 +407,22 @@ input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-of
    四段全部攤開會變成四個螢幕高，所以預設收合成一列，
    並把「城市」提到列上 —— 那是分段最主要的理由，不該藏在展開裡。
    ============================================================ */
-.stay-seg{border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;margin:0 0 8px}
-.stay-seg.open{border-color:var(--c-stay)}
+/* 收合的段並排成欄，寬度不夠就自動掉成一欄 —— 不需要為手機另寫一套版面。
+   正在編輯的那一段跨滿整行，表單才有呼吸空間。
+   這樣「四段的城市同時可見可改」跟「並排比較」兩件事可以並存 ——
+   換成分頁的話，設四個城市要點四次，那是最不該犧牲的操作。 */
+#detail-stay{display:grid;gap:10px;align-items:start;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.stay-seg{border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;min-width:0}
+.stay-seg.open{border-color:var(--c-stay);grid-column:1 / -1}
+/* 收合狀態在窄欄裡：城市與小計各自換行 */
+.stay-seg:not(.open) .seg-hd{flex-wrap:wrap;gap:6px 10px}
+.stay-seg:not(.open) .seg-city{flex:1 1 100%;order:3}
+.stay-seg:not(.open) .seg-city select{width:100%;min-width:0}
+.stay-seg:not(.open) .seg-sub{margin-left:auto;flex:0 0 auto}
+/* 展開時表單維持雙欄；收合中的窄欄不會用到這條 */
+.stay-seg.open .seg-body .grid.g2{grid-template-columns:1fr}
+@media (min-width:640px){ .stay-seg.open .seg-body .grid.g2{grid-template-columns:1fr 1fr} }
 .seg-hd{display:flex;align-items:center;gap:10px;padding:9px 12px;flex-wrap:wrap}
 .seg-toggle{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px;
   background:none;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;color:var(--c-stay)}
@@ -424,8 +438,6 @@ input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-of
 .seg-sub .twd{display:block;font-size:11px}
 .seg-body{padding:2px 12px 14px;border-top:1px dashed var(--line);margin-top:2px}
 @media (max-width:520px){
-  /* 窄螢幕：類型與小計留在第一行（那是掃視時要看的），
-     城市下拉換到第二行占滿寬度。三行會讓收合列比展開還礙眼。 */
   .seg-hd{gap:6px 10px}
   .seg-sub{margin-left:auto;flex:0 0 auto;text-align:right}
   .seg-city{flex:1 1 100%;order:3}
