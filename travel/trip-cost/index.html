@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>日本費用計算器（草稿）</title>
+
+<!--
+  ============================================================
+  Wizard 原型 v0.1
+  ============================================================
+  流程：情境 → 基本設定 → 各分類（簡單幾題）→ 想精算的才點開
+
+  兩個設計決定，理由寫在畫面上：
+
+  1. 簡單模式和精算模式「用同一個計算模型」。
+     點開精算不會讓數字突然跳掉 —— 你換到的是誤差從 ±40% 降到 ±10%，
+     以及可以改參數的能力。這比「簡單模式亂給一個數，精算才算真的」誠實得多。
+
+  2. 每個分類都顯示信心區間，總結顯示加權後的整體誤差。
+     wizard 的總數會被最不準的那一格拖累，但使用者只會記得總數。
+     把不確定性攤開來講，才不會讓工具在自己不知道的地方騙人。
+
+  ⚠️ 費率全部未查證，見 shared/rates.js。
+  ============================================================
+-->
+
+<link rel="stylesheet" href="../../shared/calc.css?v=20261006">
+</head>
+<body>
+
+<div class="draft-warn">
+  <div class="wrap">
+    <strong>⚠️ 草稿版 v0.1 — 所有費率都還沒查證</strong>
+    現在的數字只夠用來看流程順不順，<b>不能拿來當真實預算</b>。
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hd">
+    <h1>日本費用計算器</h1>
+    <p class="sub">先回答幾題拿到粗估，想算準的項目再點開精算。</p>
+  </header>
+
+  <!-- ============ 步驟 1：情境 ============ -->
+  <div class="step">
+    <div class="step-hd"><span class="step-no">1</span><h2>你這趟是哪一種</h2></div>
+    <div class="modes">
+      <button type="button" class="mode on" id="m-travel">
+        <b>旅遊</b><span>7 天以內的觀光行程</span>
+      </button>
+      <button type="button" class="mode" id="m-short" disabled>
+        <span class="soon">準備中</span>
+        <b>短期停留</b><span>打工度假、語言學校，1 個月～1 年</span>
+      </button>
+      <button type="button" class="mode" id="m-long" disabled>
+        <span class="soon">準備中</span>
+        <b>長期居住</b><span>工作簽、永住</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ 步驟 2：基本 ============ -->
+  <div class="step">
+    <div class="step-hd"><span class="step-no">2</span><h2>基本設定</h2></div>
+    <div class="card">
+      <p class="card-note">這幾題問一次就好，下面每個分類都會共用。</p>
+      <div class="grid g2">
+        <div>
+          <label class="fld" for="w-region">地區</label>
+          <select id="w-region"></select>
+        </div>
+        <div>
+          <label class="fld" for="w-days">幾天</label>
+          <input type="number" id="w-days" min="1" max="30" step="1" value="5" inputmode="numeric">
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div>
+          <label class="fld" for="w-people">幾個人</label>
+          <input type="number" id="w-people" min="1" max="9" step="1" value="2" inputmode="numeric">
+        </div>
+        <div>
+          <label class="fld" for="w-fx">匯率（1 日圓 ＝ ? 台幣）</label>
+          <div class="fx-row">
+            <input type="number" id="w-fx" min="0" step="0.0001" inputmode="decimal" style="flex:1 1 120px">
+            <span class="fx-live stale" id="fxLive">—</span>
+          </div>
+          <p class="hint">
+            這是<b>中間匯率</b>，實際換鈔／刷卡／海外提款還會差 1～3%。
+            想看實際牌價：<a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" rel="noopener">台灣銀行牌告匯率</a>
+          </p>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <span class="fld">金額用哪個幣別</span>
+        <div class="segs" id="curSeg"></div>
+        <p class="hint">輸入和顯示都會跟著換，另一個幣別留在下面的小字。
+          內部一律以日圓為準 —— 日本的價格本來就是日圓標的，匯率變動不會讓房價跟著變。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 三個彩色摘要：貼在基本設定正下方。
+       改天數／地區時不用捲到下面就看得到數字在動，點下去才滑到各自區塊。 -->
+  <div class="jump">
+    <button type="button" class="jchip is-stay" data-go="cat-stay">
+      <span class="jk">住宿</span><span class="jv" id="j-stay">—</span>
+    </button>
+    <button type="button" class="jchip is-move" data-go="cat-move">
+      <span class="jk">交通</span><span class="jv" id="j-move">—</span>
+    </button>
+    <button type="button" class="jchip is-food" data-go="cat-food">
+      <span class="jk">飲食</span><span class="jv" id="j-food">—</span>
+    </button>
+  </div>
+
+  <!-- ============ 步驟 3：分類 ============ -->
+  <div class="step">
+    <div class="step-hd"><span class="step-no">3</span><h2>各項花費</h2></div>
+
+    <!-- 住宿 -->
+    <div class="cat is-stay" id="cat-stay">
+      <div class="cat-hd">
+        <h3>住宿</h3>
+        <span class="cat-amt" id="a-stay">—</span>
+        <label class="tog"><input type="checkbox" id="d-stay"><span class="box"></span>精算</label>
+      </div>
+      <div class="cat-body" id="simple-stay">
+        <div class="mix" id="mix-stay"></div>
+        <p class="mix-sum" id="sum-stay"></p>
+        <p class="hint" id="h-stay"></p>
+        <div class="extra">
+          <span class="extra-lbl">其他住宿相關支出</span>
+          <input type="text" id="ex-stay-t" placeholder="例：行李寄放、加床費">
+          <input type="number" id="ex-stay-v" min="0" step="500" value="0" inputmode="numeric">
+        </div>
+      </div>
+      <div class="detail-body" id="detail-stay" hidden>
+        <div id="mod-stay"></div>
+      </div>
+    </div>
+
+    <!-- 交通 -->
+    <div class="cat is-move" id="cat-move">
+      <div class="cat-hd">
+        <h3>交通</h3>
+        <span class="cat-amt" id="a-move">—</span>
+        <label class="tog"><input type="checkbox" id="d-move"><span class="box"></span>精算</label>
+      </div>
+      <div class="cat-body">
+        <div class="segs">
+          <input type="radio" name="move" id="mv-car" value="car" checked><label for="mv-car">自駕為主</label>
+          <input type="radio" name="move" id="mv-rail" value="rail"><label for="mv-rail">鐵路為主</label>
+        </div>
+        <div class="mix" id="mix-move" style="margin-top:10px">
+          <div class="mix-row on">
+            <span class="mix-nm" id="carDaysLbl">租車</span>
+            <input type="number" class="mix-n" id="w-cardays" min="0" max="30" step="1" value="0">
+            <span class="mix-u">天</span>
+          </div>
+        </div>
+        <p class="hint" id="h-move"></p>
+        <div class="extra">
+          <span class="extra-lbl">其他交通支出</span>
+          <input type="text" id="ex-move-t" placeholder="例：機場巴士、計程車">
+          <input type="number" id="ex-move-v" min="0" step="500" value="0" inputmode="numeric">
+        </div>
+      </div>
+      <div class="detail-body" id="detail-move" hidden>
+        <div id="mod"></div>
+        <div id="mod-rail"></div>
+      </div>
+    </div>
+
+    <!-- 餐食 -->
+    <div class="cat is-food" id="cat-food">
+      <div class="cat-hd">
+        <h3>餐食</h3>
+        <span class="cat-amt" id="a-food">—</span>
+        <label class="tog off">
+          <input type="checkbox" id="d-food" disabled><span class="box"></span>不精算
+        </label>
+      </div>
+      <div class="cat-body">
+        <div class="mix" id="mix-food"></div>
+        <p class="mix-sum" id="sum-food"></p>
+        <p class="hint">
+          一天吃普一天吃好很正常，所以這裡填<b>各有幾天</b>，不是選一個等級套整趟。<br>
+          這一格<b>刻意不做精算</b> —— 餐費完全取決於個人，我們沒有比你更準的資訊，
+          硬做一個「精算」只會製造假的精確感。誤差就誠實留在 ±35%。
+        </p>
+        <div class="extra">
+          <span class="extra-lbl">其他飲食支出</span>
+          <input type="text" id="ex-food-t" placeholder="例：額外買的點心、伴手禮零食">
+          <input type="number" id="ex-food-v" min="0" step="500" value="0" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 總結 ============ -->
+  <div class="step">
+    <div class="step-hd"><span class="step-no">4</span><h2>結果</h2></div>
+
+    <div class="sum">
+      <span class="lbl">這趟大約</span>
+      <div class="big" id="s-total">—</div>
+      <p class="sub" id="s-sub">—</p>
+    </div>
+
+    <div class="conf">
+      <p class="rng" id="c-range">—</p>
+      <div class="bar"><i id="c-bar" style="width:0%"></i></div>
+      <p id="c-note"></p>
+    </div>
+
+    <div class="share">
+      <div class="share-hd">
+        <span class="k">平均每人每天</span>
+        <span class="v" id="sh-perday">—</span>
+      </div>
+      <ul class="share-list" id="sh-list"></ul>
+      <p class="share-foot">
+        斜紋段是<b>誤差範圍</b>，越長代表那一格越是用平均值推的。
+        點分類旁的「精算」可以把它縮短 —— 縮不掉的部分（像餐費）本來就沒辦法算準。
+      </p>
+    </div>
+  </div>
+
+  <p class="meta">
+    <a href="../../">← 回工具總覽</a><br>
+    資料更新日：<span id="oUpdated">—</span>　·　下次複查：<span id="oReview">—</span><br>
+    單獨看租車的詳細版：<a href="../rental-car/">日本自駕總成本計算器</a>（同一份程式碼，另一個入口）
+  </p>
+
+</div>
+
+<script src="../../shared/rates.js?v=20261006"></script>
+<script src="../../shared/core.js?v=20261006"></script>
+<script src="../../shared/rental-module.js?v=20261006"></script>
+<script src="../../shared/lodging-module.js?v=20261006"></script>
+<script src="../../shared/rail-module.js?v=20261006"></script>
+<script>
+(function () {
+  "use strict";
+  var R = window.JP_RATES, C = window.JPCalc;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- 動態產生選項 ---------- */
+  $("w-region").innerHTML = Object.keys(R.region).map(function (k) {
+    return '<option value="' + k + '"' + (k === "kyushu" ? " selected" : "") + '>' + R.region[k].label + "</option>";
+  }).join("");
+  $("oUpdated").textContent = R.updated;
+  $("oReview").textContent  = R.next_review;
+
+  /* 分配列：每個等級一個天數／晚數欄位。
+     取代原本的單選 —— 佔的空間差不多，但表達得出「兩天普通一天好」。 */
+  function mixUI(hostId, name, data, unit) {
+    $(hostId).innerHTML = Object.keys(data).map(function (k) {
+      return '<div class="mix-row is-' + name + '" data-k="' + k + '">' +
+               '<span class="mix-nm">' + data[k].label + "</span>" +
+               '<input type="number" class="mix-n" id="' + name + "-" + k +
+                 '" min="0" max="60" step="1" value="0" inputmode="numeric">' +
+               '<span class="mix-u">' + unit + "</span>" +
+             "</div>";
+    }).join("");
+  }
+  mixUI("mix-stay", "stay", R.lodging, "晚");
+  mixUI("mix-food", "food", R.food, "天");
+
+  /* 讀出分配 */
+  function readMix(name, data) {
+    var m = {};
+    Object.keys(data).forEach(function (k) {
+      var el = $(name + "-" + k);
+      m[k] = el ? Math.max(0, Math.round(Number(el.value) || 0)) : 0;
+    });
+    return m;
+  }
+
+  /* 使用者沒動過的話，把全部天數塞給目前的主要等級 */
+  var mixTouched = { stay: false, food: false };
+  function syncMix(name, data, want, defKey) {
+    if (mixTouched[name]) return;
+    Object.keys(data).forEach(function (k) {
+      var el = $(name + "-" + k);
+      if (el) el.value = (k === defKey) ? want : 0;
+    });
+  }
+
+  /* 合計提示：對不上就標紅，但不強制修正 —— 使用者可能有他的理由 */
+  function paintMixSum(name, data, want, unit) {
+    var used = C.mixDays(readMix(name, data));
+    var el = $("sum-" + name);
+    if (!el) return used;
+    el.className = "mix-sum" + (used === want ? "" : " bad");
+    el.innerHTML = "合計 <b>" + used + " / " + want + " " + unit + "</b>" +
+      (used === want ? "" :
+        (used < want ? "　還有 " + (want - used) + " " + unit + "沒分配到"
+                     : "　超過行程天數 " + (used - want) + " " + unit));
+    Array.prototype.forEach.call(document.querySelectorAll("#mix-" + name + " .mix-row"), function (row) {
+      var k = row.getAttribute("data-k");
+      var v = Number(($(name + "-" + k) || {}).value) || 0;
+      row.classList.toggle("on", v > 0);
+    });
+    return used;
+  }
+
+  /* 各分類的自由輸入項 */
+  function extraOf(g) {
+    var v = $("ex-" + g + "-v");
+    return v ? Math.max(0, Number(v.value) || 0) : 0;
+  }
+  function extraLabel(g) {
+    var t = $("ex-" + g + "-t");
+    return (t && t.value.trim()) ? t.value.trim() : "其他";
+  }
+
+  var STAY_DEFAULT = "airbnb", FOOD_DEFAULT = "normal";
+  var carDaysTouched = false;
+
+  var reduceMotion = !!(window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  var radio = function (n) {
+    var e = document.querySelector('input[name="' + n + '"]:checked');
+    return e ? e.value : null;
+  };
+  var num = function (id, fb) {
+    var v = Number($(id).value);
+    return (isFinite(v) && v >= 0) ? v : fb;
+  };
+
+  /* ---------- 租車模組：只掛載一次，用不到時整塊隱藏 ----------
+     （模組內部用固定 id，所以同一頁只能有一個實例） */
+  var rentalRes = null;
+  var mod = JPRentalModule.mount($("mod"), {
+    standalone: false,      /* 地區／天數／人數由步驟 2 注入，不重複問 */
+    showHero: false,        /* 「亂估 vs 實算」留給獨立頁當主打，wizard 裡會太吵 */
+    onChange: function (res) { rentalRes = res; paint(); }
+  });
+
+  var railRes = null;
+  var modRail = JPRailModule.mount($("mod-rail"), {
+    standalone: false,
+    onChange: function (res) { railRes = res; paint(); }
+  });
+
+  var stayRes = null;
+  var modStay = JPLodgingModule.mount($("mod-stay"), {
+    standalone: false,      /* 人數／晚數由步驟 2 注入 */
+    showHero: false,
+    onChange: function (res) {
+      stayRes = res;
+      /* 精算裡改了住宿類型 → 同步回簡單模式的選項，
+         這樣關掉精算時不會跳回不相干的類型 */
+      var t = $("lm-type");
+      if (t && $("stay-" + t.value)) $("stay-" + t.value).checked = true;
+      paint();
+    }
+  });
+
+  /* ---------- 主計算 ---------- */
+  function paint() {
+    var region = $("w-region").value;
+    var days   = Math.max(1, Math.round(num("w-days", 5)));
+    var ppl    = Math.max(1, Math.round(num("w-people", 2)));
+    var fx     = num("w-fx", 0);
+    var nights = Math.max(0, days - 1);
+    var detailMove = $("d-move").checked;
+    var detailStay = $("d-stay").checked;
+
+    /* ---------- 住宿：分配晚數，不是選一個等級套整趟 ---------- */
+    $("detail-stay").hidden = !detailStay;
+    $("simple-stay").hidden = detailStay;
+
+    syncMix("stay", R.lodging, nights, STAY_DEFAULT);
+    var stayMix = readMix("stay", R.lodging);
+    paintMixSum("stay", R.lodging, nights, "晚");
+
+    var stayKey = C.mixDominant(stayMix) || STAY_DEFAULT;
+    var stayExtra = extraOf("stay");
+    var stayBase, mealCover = 0;
+
+    if (detailStay && stayRes) {
+      stayBase = stayRes.total;
+      mealCover = stayRes.mealCover;
+    } else {
+      stayBase = C.lodgingMix(stayMix, ppl);
+      var used = Object.keys(stayMix).filter(function (k) { return stayMix[k] > 0; });
+      var L = R.lodging[stayKey];
+      var word = L.unitWord || "間";
+      $("h-stay").textContent = used.length > 1
+        ? "混搭 " + used.length + " 種住宿，逐項相加。點「精算」可加入宿泊稅與實際房價。"
+        : ((L.basis === "unit")
+            ? C.lodgingUnits(stayKey, ppl) + " " + word + "（住 " +
+              C.lodgingSplit(stayKey, ppl).join("＋") + " 人）　" +
+              C.fmtMain(C.lodgingUnitPrice(stayKey, ppl)) + "／晚。" +
+              (L.perExtraPerson
+                ? "每多住一人 +" + C.fmtMain(L.perExtraPerson) + "，住兩人不是一人的兩倍。"
+                : "多帶一人不加價，人越多每人越便宜。")
+            : C.fmtMain(L.perNight) + " ／人／晚。這一類是真的按人頭賣。");
+    }
+    var stay = stayBase + stayExtra;
+
+    /* ---------- 交通 ---------- */
+    var moveKey = radio("move");
+    var moveExtra = extraOf("move");
+    var moveBase, moveNote;
+
+    /* 租車天數獨立於行程天數 —— 很少有人整趟都租車 */
+    var isCar = (moveKey === "car");
+    $("mix-move").hidden = !isCar;
+    if (!carDaysTouched) $("w-cardays").value = days;
+    var carDays = Math.max(0, Math.round(num("w-cardays", days)));
+    $("carDaysLbl").textContent = "租車（行程共 " + days + " 天）";
+
+    if (isCar) {
+      moveBase = rentalRes ? rentalRes.total : 0;
+      moveNote = detailMove
+        ? "已精算：可調車種、里程、保險、還車地點。"
+        : "租 " + carDays + " 天，已包含保險、高速費、停車費。" +
+          (carDays < days ? "其餘 " + (days - carDays) + " 天不算車錢。" : "") +
+          "點「精算」可自己調。";
+    } else if (detailMove && railRes) {
+      moveBase = railRes.total;
+      moveNote = railRes.kind === "buy"
+        ? "已精算：建議買「" + railRes.best.label + "」"
+        : (railRes.kind === "skip" ? "已精算：逐次購票最便宜" : "已精算：還沒勾選區間");
+    } else {
+      moveBase = C.railSimple(region, ppl, days);
+      moveNote = C.fmtMain(R.region[region].railPerDay) + " ／人／日 × " + ppl + " 人 × " + days +
+                 " 天。點「精算」可比較 JR Pass 划不划算。";
+    }
+    $("h-move").textContent = moveNote;
+    var move = moveBase + moveExtra;
+
+    $("detail-move").hidden = !detailMove;
+    $("mod").hidden      = !isCar;
+    $("mod-rail").hidden = isCar;
+
+    /* ---------- 餐食：分配天數，一天吃普一天吃好很正常 ----------
+       住宿含餐的話還要折抵，否則就是把同一頓飯算兩次。
+       這種跨分類的修正，是 wizard 做得到而單一計算器做不到的事。 */
+    syncMix("food", R.food, days, FOOD_DEFAULT);
+    var foodMixObj = readMix("food", R.food);
+    paintMixSum("food", R.food, days, "天");
+
+    var foodKey   = C.mixDominant(foodMixObj) || FOOD_DEFAULT;
+    var foodDays  = C.mixDays(foodMixObj);
+    var foodBase  = C.foodMix(foodMixObj, ppl);
+    var avgPerDay = (foodDays > 0) ? foodBase / ppl / foodDays : 0;
+    var foodCut   = avgPerDay * ppl * nights * mealCover;
+    var foodExtra = extraOf("food");
+    var food      = Math.max(0, foodBase - foodCut) + foodExtra;
+
+    var foodUsed = Object.keys(foodMixObj).filter(function (k) { return foodMixObj[k] > 0; });
+    var foodNote = (foodUsed.length > 1 ? "混搭 " + foodUsed.length + " 種" : R.food[foodKey].label) +
+                   " · " + foodDays + " 天 · " + ppl + " 人";
+    if (foodCut > 0)   foodNote += "　已扣住宿含餐 −" + C.fmtMain(foodCut);
+    if (foodExtra > 0) foodNote += "　＋" + extraLabel("food") + " " + C.fmtMain(foodExtra);
+
+    /* 自己填的金額是確定的，不該讓它把那一格的誤差灌大。
+       所以誤差只按「模型估算的部分」占比計算 —— 填得越精確，誤差越小。 */
+    function blend(base, extra, conf) {
+      var t = base + extra;
+      return (t > 0) ? conf * base / t : conf;
+    }
+    function withExtra(note, g, extra) {
+      return extra > 0 ? note + "　＋" + extraLabel(g) + " " + C.fmtMain(extra) : note;
+    }
+
+    /* detailed: true 已精算 ／ false 可精算但還沒 ／ null 沒有精算模組
+       available: 精算模組現在真的能用嗎 */
+    var parts = [
+      { nm: "住宿", amt: stay,
+        conf: blend(stayBase, stayExtra, detailStay ? R.confidence.detail : R.confidence.simple),
+        detailed: detailStay, available: true,
+        note: withExtra(
+          (detailStay && stayRes ? R.lodging[$("lm-type").value].label + "（含宿泊稅）"
+                                 : (Object.keys(stayMix).filter(function (k) { return stayMix[k] > 0; }).length > 1
+                                     ? "混搭住宿" : R.lodging[stayKey].label)) +
+          " · " + C.mixDays(stayMix) + " 晚 · " + ppl + " 人", "stay", stayExtra) },
+
+      { nm: "交通", amt: move,
+        conf: blend(moveBase, moveExtra, detailMove ? R.confidence.detail : R.confidence.simple),
+        detailed: detailMove, available: true,
+        note: withExtra(isCar ? "自駕 " + carDays + " 天（含保險、高速、停車）"
+                              : "鐵路（含 Pass 比較與當地交通）", "move", moveExtra) },
+
+      { nm: "餐食", amt: food,
+        conf: blend(Math.max(0, foodBase - foodCut), foodExtra, R.confidence.food),
+        detailed: null, available: false,
+        note: foodNote }
+    ];
+
+    /* 住宿總額大到看不出貴不貴，括號補上「一晚多少」當比較基準。
+       主金額大，附註小且灰 —— 這是計算器，金額才是主體。 */
+    var stayNote = nights > 0
+      ? function (v) { return "（一晚 " + C.fmtMain(v / nights) + "）"; }
+      : "";
+
+    parts.forEach(function (p) {
+      var g    = p.nm === "住宿" ? "stay" : (p.nm === "交通" ? "move" : "food");
+      var note = (p.nm === "住宿") ? stayNote : "";
+      C.setAmt($("a-" + g), p.amt, note, g + ":cat");
+      C.setAmt($("j-" + g), p.amt, note, g + ":chip");
+      p.group = g;
+    });
+
+    var cf = C.confidence(parts);
+    C.setAmt($("s-total"), cf.total, null, "total:sum");
+    /* 注意：台幣要換算「每人」的金額，不是總額 —— 標籤寫「／人」卻給總額，
+       正好是最容易讓使用者做錯決定的那種錯。 */
+    $("s-sub").textContent =
+      "每人 " + C.yen(cf.total / ppl) +
+      (fx > 0 ? "　·　" + C.twd(cf.total / ppl * fx) + "／人" : "");
+
+    $("c-range").textContent =
+      "區間 " + C.yen(cf.low) + " – " + C.yen(cf.high) + "（±" + Math.round(cf.pct * 100) + "%）";
+
+    /* 精度條：±40% → 0%，±10% → 100% */
+    var pct = Math.max(0, Math.min(1, (0.40 - cf.pct) / 0.30));
+    $("c-bar").style.width = Math.round(pct * 100) + "%";
+
+    /* 還能精算幾項 —— 只算「現在真的點得下去」的 */
+    var openable = parts.filter(function (p) { return p.available && !p.detailed; });
+    var pending  = parts.filter(function (p) { return !p.available && p.detailed === false; });
+    var msg;
+
+    if (openable.length > 0) {
+      var best = C.confidence(parts.map(function (p) {
+        return { amt: p.amt, conf: (p.available && !p.detailed) ? R.confidence.detail : p.conf };
+      }));
+      msg = "還有 " + openable.length + " 項可以精算（" +
+            openable.map(function (p) { return p.nm; }).join("、") +
+            "），點開能把誤差縮到 ±" + Math.round(best.pct * 100) + "%。";
+    } else {
+      msg = "現在能精算的都精算了。";
+    }
+    if (pending.length > 0) {
+      msg += pending.map(function (p) { return p.nm; }).join("、") + "的精算模組還在準備中。";
+    }
+    $("c-note").textContent = msg;
+
+    /* ---------- 占比圖 ----------
+       同時畫「占多少」和「有多不準」。
+       只比比例的圖看不出哪一格是猜的，那正是這個工具想解決的問題。 */
+    $("sh-perday").textContent = "";
+    C.setAmt($("sh-perday"), days > 0 ? cf.total / ppl / days : 0, null, "total:perday");
+
+    var ul = $("sh-list");
+    ul.innerHTML = "";
+    parts.forEach(function (p) {
+      var pct = cf.total > 0 ? p.amt / cf.total : 0;
+      var err = cf.total > 0 ? p.amt * p.conf / cf.total : 0;
+
+      var li = document.createElement("li");
+      li.className = "share-row is-" + p.group;
+
+      var top = document.createElement("div");
+      top.className = "share-top";
+      var nm = document.createElement("span");
+      nm.className = "share-nm";
+      nm.textContent = p.nm;
+      var amt = document.createElement("span");
+      amt.className = "share-amt";
+      C.setAmt(amt, p.amt, null, p.group + ":share");
+      var pc = document.createElement("span");
+      pc.className = "share-pct";
+      pc.textContent = Math.round(pct * 100) + "%";
+      top.appendChild(nm); top.appendChild(amt); top.appendChild(pc);
+
+      var bar = document.createElement("div");
+      bar.className = "share-bar";
+      var fill = document.createElement("i");
+      fill.className = "share-fill";
+      fill.style.width = (pct * 100).toFixed(1) + "%";
+      var e = document.createElement("i");
+      e.className = "share-err";
+      /* 誤差段從實心段的尾端往外長，超出 100% 就截斷 */
+      e.style.left  = (pct * 100).toFixed(1) + "%";
+      e.style.width = (Math.min(err, 1 - pct) * 100).toFixed(1) + "%";
+      bar.appendChild(fill); bar.appendChild(e);
+
+      var meta = document.createElement("div");
+      meta.className = "share-meta";
+      var note = document.createElement("span");
+      note.className = "share-note-row";
+      note.textContent = p.note;
+      meta.appendChild(note);
+
+      var flag = document.createElement("span");
+      if (p.detailed === true) {
+        flag.className = "share-flag done";
+        flag.textContent = "已精算 ±" + Math.round(p.conf * 100) + "%";
+      } else if (p.detailed === null) {
+        flag.className = "share-flag never";
+        flag.textContent = "算不準 ±" + Math.round(p.conf * 100) + "%";
+      } else if (p.available) {
+        flag = document.createElement("button");
+        flag.type = "button";
+        flag.className = "share-flag can";
+        flag.textContent = "可精算 ±" + Math.round(p.conf * 100) + "% →";
+        flag.addEventListener("click", function () {
+          var box = $("d-" + p.group);
+          if (box && !box.disabled) { box.checked = true; C.beginAnim([p.group, "total"]); paint(); }
+          var target = $("cat-" + p.group);
+          if (target) target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        });
+      } else {
+        flag.className = "share-flag never";
+        flag.textContent = "準備中 ±" + Math.round(p.conf * 100) + "%";
+      }
+      meta.appendChild(flag);
+
+      li.appendChild(top); li.appendChild(bar); li.appendChild(meta);
+      ul.appendChild(li);
+    });
+  }
+
+  /* ---------- 綁定 ---------- */
+  /* 基本設定會牽動全部三類，所以整批動畫 */
+  ["w-region", "w-days", "w-people", "w-fx"].forEach(function (id) {
+    function h() { C.beginAnim(["stay", "move", "food", "total"]); pushCtx(); }
+    $(id).addEventListener("input", h);
+    $(id).addEventListener("change", h);
+  });
+  function pushCtx() {
+    /* 步驟 2 的設定推進每一個詳細模組 —— 這就是共用狀態模型的用途。
+       模組永遠不自己問天數人數，所以加第三、第四個分類時這裡只多兩行。 */
+    var days = Math.max(1, Math.round(num("w-days", 5)));
+    var ppl  = Math.max(1, Math.round(num("w-people", 2)));
+
+    var carDays = carDaysTouched
+      ? Math.max(0, Math.round(num("w-cardays", days)))
+      : days;
+    mod.setContext({
+      region: $("w-region").value,
+      days: Math.max(1, carDays),   /* 租車天數，不是行程天數 */
+      tripDays: days,
+      people: ppl, fx: num("w-fx", 0)
+    });
+    modRail.setContext({ people: ppl, region: $("w-region").value, tripDays: days });
+    modStay.setContext({
+      people: ppl,
+      nights: Math.max(0, days - 1),
+      city: R.region[$("w-region").value].taxCity
+    });
+    /* setContext 會觸發模組的 onChange，paint 由那裡呼叫 */
+  }
+
+  /* 交通方式（還是單選） */
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="move"]'), function (e) {
+    e.addEventListener("change", function () { C.beginAnim(["move", "total"]); paint(); });
+  });
+
+  /* 分配欄位：動到就標記 touched，之後改行程天數不再自動覆蓋 */
+  [["stay", R.lodging], ["food", R.food]].forEach(function (pair) {
+    var name = pair[0];
+    Object.keys(pair[1]).forEach(function (k) {
+      var el = $(name + "-" + k);
+      if (!el) return;
+      el.addEventListener("input", function () {
+        mixTouched[name] = true;
+        C.beginAnim([name, "total"]);
+        paint();
+      });
+    });
+  });
+
+  /* 租車天數 */
+  $("w-cardays").addEventListener("input", function () {
+    carDaysTouched = true;
+    C.beginAnim(["move", "total"]);
+    pushCtx();
+  });
+
+  /* 各分類的「其他」自由輸入 */
+  ["stay", "move", "food"].forEach(function (g) {
+    ["t", "v"].forEach(function (suffix) {
+      var el = $("ex-" + g + "-" + suffix);
+      if (!el) return;
+      el.addEventListener("input", function () { C.beginAnim([g, "total"]); paint(); });
+    });
+  });
+  /* 摘要按鈕 → 捲到對應分類（reduceMotion 在上面已判斷） */
+  Array.prototype.forEach.call(document.querySelectorAll(".jchip"), function (b) {
+    b.addEventListener("click", function () {
+      var t = $(b.getAttribute("data-go"));
+      if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    });
+  });
+
+  $("d-move").addEventListener("change", function () { C.beginAnim(["move", "total"]); paint(); });
+  $("d-stay").addEventListener("change", function () { C.beginAnim(["stay", "total"]); paint(); });
+
+  /* 匯率：預設值先上，即時匯率抓到再覆蓋；抓不到也不影響其他計算 */
+  C.initCurrency("curSeg", function () { C.beginAnim(["stay", "move", "food", "total"]); pushCtx(); });
+
+  C.initFx("w-fx", "fxLive", function (userEdit) {
+    if (userEdit) C.beginAnim(["stay", "move", "food", "total"]);
+    else C.endAnim();
+    pushCtx();
+  });
+
+  C.endAnim();      /* 首次載入直接顯示，不跑動畫 */
+  pushCtx();
+})();
+</script>
+
+</body>
+</html>

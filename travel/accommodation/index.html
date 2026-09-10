@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>日本住宿實付金額計算器（草稿）</title>
+
+<!--
+  獨立頁 —— 未來的 /calc/lodging-tax/，SEO 入口鎖定「日本 宿泊稅」。
+  跟 wizard 的「住宿 → 精算」用同一份 shared/lodging-module.js。
+  加這一頁只花了十幾行 HTML，因為架構已經在了 —— 這就是先定架構的回報。
+-->
+
+<link rel="stylesheet" href="../../shared/calc.css?v=20261006">
+</head>
+<body>
+
+<div class="draft-warn">
+  <div class="wrap">
+    <strong>⚠️ 草稿版 v0.1 — 所有費率都還沒查證</strong>
+    宿泊稅級距逐年在改（京都市 2026 年才調過），這裡的數字<b>一定要重查</b>再上線。
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hd">
+    <h1>日本住宿實付金額計算器</h1>
+    <p class="sub">
+      訂房網站顯示的價格不是你最後付的錢。這裡把宿泊稅、入湯稅、服務費一起算進去。<br>
+      要估整趟旅費的話，用 <a href="../trip-cost/">完整版計算器</a>。
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>你的住宿</h2>
+    <p class="card-note">全部都有預設值 — 什麼都不改，下面也已經是一個合理的估算。</p>
+    <div id="mod"></div>
+  </section>
+
+  <section class="card">
+    <h2>總計</h2>
+    <div class="totals">
+      <div class="tot"><span class="k">實付總額</span><span class="v" id="oTotal">—</span></div>
+      <div class="tot"><span class="k">平均每人每晚</span><span class="v" id="oPer">—</span></div>
+    </div>
+    <div class="grid g2">
+      <div>
+        <label class="fld" for="fx">匯率（1 日圓 ＝ ? 台幣）</label>
+        <div class="fx-row">
+          <input type="number" id="fx" min="0" step="0.0001" inputmode="decimal" style="flex:1 1 120px">
+          <span class="fx-live stale" id="fxLive">—</span>
+        </div>
+        <p class="hint">
+          這是<b>中間匯率</b>，實際換鈔／刷卡／海外提款還會差 1～3%。
+          想看實際牌價：<a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" rel="noopener">台灣銀行牌告匯率</a>
+        </p>
+      </div>
+      <div style="margin-top:14px">
+        <span class="fld">金額用哪個幣別</span>
+        <div class="segs" id="curSeg"></div>
+      </div>
+      <div>
+        <span class="fld">換算新台幣</span>
+        <div class="tot" style="padding:10px 14px"><span class="v" id="oTwd" style="font-size:20px">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>宿泊稅是怎麼回事</h2>
+    <p style="font-size:15.5px;margin:0 0 12px">
+      宿泊稅<b>不是全國統一的稅</b>，是各個自治體自己決定要不要課、課多少。
+      所以同樣住一晚 ¥12,000，在東京跟在沒課徵的城市，付的錢不一樣。
+    </p>
+    <p style="font-size:15.5px;margin:0 0 12px">
+      稅額多半按「<b>每人每晚的住宿費落在哪個級距</b>」決定，而且是<b>現場付</b>，
+      不會出現在訂房網站的付款金額裡 —— 這就是為什麼很多人到了櫃檯才發現要多掏錢。
+    </p>
+    <p style="font-size:15.5px;margin:0">
+      泡湯的話還有<b>入湯稅</b>另計。中價位以上的飯店與旅館則常收 10～15% 的服務費。
+    </p>
+  </section>
+
+  <p class="meta">
+    <a href="../../">← 回工具總覽</a><br>
+    資料更新日：<span id="oUpdated">—</span>　·　下次複查：<span id="oReview">—</span><br>
+    自駕費用請看 <a href="../rental-car/">日本自駕總成本計算器</a>。
+  </p>
+
+</div>
+
+<script src="../../shared/rates.js?v=20261006"></script>
+<script src="../../shared/core.js?v=20261006"></script>
+<script src="../../shared/lodging-module.js?v=20261006"></script>
+<script>
+(function () {
+  "use strict";
+  var R = window.JP_RATES, C = window.JPCalc;
+  var $ = function (id) { return document.getElementById(id); };
+
+  $("oUpdated").textContent = R.updated;
+  $("oReview").textContent  = R.next_review;
+
+  var last = null, lastCtx = null;
+
+  function paint() {
+    if (!last) return;
+    var fx = Number($("fx").value) || 0;
+    var slots = Math.max(1, lastCtx.people * Math.max(1, lastCtx.nights));
+    C.setAmt($("oTotal"), last.total, null, "stay:pageTotal");
+    C.setAmt($("oPer"), last.total / slots, "／人／晚", "stay:pagePer");
+    $("oTwd").textContent = fx > 0 ? C.twd(last.total * fx) : "—";
+  }
+
+  JPLodgingModule.mount($("mod"), {
+    standalone: true,
+    onChange: function (res, ctx) { last = res; lastCtx = ctx; paint(); }
+  });
+
+  C.initCurrency("curSeg", function () { paint(); });
+
+  C.initFx("fx", "fxLive", function (userEdit) {
+    if (userEdit) C.beginAnim(["stay", "total"]); else C.endAnim();
+    document.getElementById("lm-rate").dispatchEvent(new Event("input", { bubbles: true }));
+    paint();
+  });
+})();
+</script>
+
+</body>
+</html>

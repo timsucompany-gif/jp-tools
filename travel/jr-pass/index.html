@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>JR Pass 值不值得買（草稿）</title>
+
+<!--
+  獨立頁 —— 未來的 /calc/jr-pass/，SEO 入口鎖定「JR Pass 值得嗎／划算嗎」。
+  跟 wizard 的「交通 → 鐵路 → 精算」共用 shared/rail-module.js。
+-->
+
+<link rel="stylesheet" href="../../shared/calc.css?v=20261006">
+</head>
+<body>
+
+<div class="draft-warn">
+  <div class="wrap">
+    <strong>⚠️ 草稿版 v0.1 — 票價與 Pass 價格都還沒查證</strong>
+    JR Pass 這幾年調過好幾次價，<b>一定要重查</b>再上線。
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hd">
+    <h1>JR Pass 值不值得買</h1>
+    <p class="sub">
+      勾出你這趟會搭的長程區間，直接算給你看 —— 包含「不用買」這個答案。<br>
+      要估整趟旅費的話，用 <a href="../trip-cost/">完整版計算器</a>。
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>你的行程</h2>
+    <p class="card-note">勾了就會即時比較，不用按任何按鈕。</p>
+    <div id="mod"></div>
+  </section>
+
+  <section class="card">
+    <h2>總計</h2>
+    <div class="totals">
+      <div class="tot"><span class="k">最省的做法要花</span><span class="v" id="oTotal">&mdash;</span></div>
+      <div class="tot"><span class="k">每人分攤</span><span class="v" id="oPer">&mdash;</span></div>
+    </div>
+    <div class="grid g2">
+      <div>
+        <label class="fld" for="fx">匯率（1 日圓 ＝ ? 台幣）</label>
+        <div class="fx-row">
+          <input type="number" id="fx" min="0" step="0.0001" inputmode="decimal" style="flex:1 1 120px">
+          <span class="fx-live stale" id="fxLive">&mdash;</span>
+        </div>
+        <p class="hint">
+          這是<b>中間匯率</b>，實際換鈔／刷卡／海外提款還會差 1～3%。
+          想看實際牌價：<a href="https://rate.bot.com.tw/xrt?Lang=zh-TW" target="_blank" rel="noopener">台灣銀行牌告匯率</a>
+        </p>
+      </div>
+      <div style="margin-top:14px">
+        <span class="fld">金額用哪個幣別</span>
+        <div class="segs" id="curSeg"></div>
+      </div>
+      <div>
+        <span class="fld">換算新台幣</span>
+        <div class="tot" style="padding:10px 14px"><span class="v" id="oTwd" style="font-size:20px">&mdash;</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>買 Pass 之前先想清楚的事</h2>
+    <p style="font-size:15.5px;margin:0 0 12px">
+      JR Pass <b>不是買了就一定省</b>。它的回本點取決於你搭多少<b>長程</b>路線 ——
+      市區內的移動再多，也很難把一張全國版的價差補回來。
+    </p>
+    <p style="font-size:15.5px;margin:0 0 12px">
+      如果行程集中在同一個地區，<b>地區版通常遠比全國版划算</b>。
+      但只要中間插一段跨區的新幹線，地區版就用不了，這時才需要考慮全國版。
+    </p>
+    <p style="font-size:15.5px;margin:0">
+      另外，Pass 多半不能搭最快的<b>のぞみ／みずほ</b>（需另外補票），
+      這會影響移動時間，不只是錢的問題。
+    </p>
+  </section>
+
+  <p class="meta">
+    <a href="../../">← 回工具總覽</a><br>
+    資料更新日：<span id="oUpdated">&mdash;</span>　·　下次複查：<span id="oReview">&mdash;</span><br>
+    自駕的話請看 <a href="../rental-car/">日本自駕總成本計算器</a>；
+    住宿看 <a href="../accommodation/">住宿實付金額計算器</a>。
+  </p>
+
+</div>
+
+<script src="../../shared/rates.js?v=20261006"></script>
+<script src="../../shared/core.js?v=20261006"></script>
+<script src="../../shared/rail-module.js?v=20261006"></script>
+<script>
+(function () {
+  "use strict";
+  var R = window.JP_RATES, C = window.JPCalc;
+  var $ = function (id) { return document.getElementById(id); };
+
+  $("oUpdated").textContent = R.updated;
+  $("oReview").textContent  = R.next_review;
+
+  var last = null, lastCtx = null;
+
+  function paint() {
+    if (!last) return;
+    var fx = Number($("fx").value) || 0;
+    C.setAmt($("oTotal"), last.total, null, "move:pageTotal");
+    C.setAmt($("oPer"), last.total / Math.max(1, lastCtx.people), "／人", "move:pagePer");
+    $("oTwd").textContent = fx > 0 ? C.twd(last.total * fx) : "—";
+  }
+
+  JPRailModule.mount($("mod"), {
+    standalone: true,
+    onChange: function (res, ctx) { last = res; lastCtx = ctx; paint(); }
+  });
+
+  C.initCurrency("curSeg", function () { paint(); });
+
+  C.initFx("fx", "fxLive", function (userEdit) {
+    if (userEdit) C.beginAnim(["move", "total"]); else C.endAnim();
+    document.getElementById("km-people").dispatchEvent(new Event("input", { bubbles: true }));
+    paint();
+  });
+})();
+</script>
+
+</body>
+</html>

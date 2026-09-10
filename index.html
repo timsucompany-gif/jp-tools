@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>日本工具箱｜費用試算與比較</title>
+
+<!--
+  工具總覽（首頁）。
+  刻意做成純靜態卡片列表 —— 不載任何計算邏輯，首屏最快。
+
+  ⚠️ 目前整站掛 noindex：租車與鐵路的費率還沒查證完。
+     上線前的檢查清單見 README.md。
+-->
+
+<link rel="stylesheet" href="shared/calc.css?v=20261006">
+</head>
+<body>
+
+<div class="draft-warn">
+  <div class="wrap">
+    <strong>⚠️ 草稿階段 — 部分費率尚未查證</strong>
+    住宿與鐵路票價已查證；<b>租車全部費率仍是估計值</b>，還不能當真實預算用。
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hd">
+    <h1>日本工具箱</h1>
+    <p class="sub">
+      算出你自己估不到的那幾筆錢。<br>
+      每個工具都會把「你會漏掉的費用」單獨標出來，並誠實顯示這個數字有多準。
+    </p>
+  </header>
+
+  <h2 class="sec-hd">旅遊</h2>
+  <div class="tools">
+
+    <a class="tool is-main" href="travel/trip-cost/">
+      <span class="tool-tag">從這裡開始</span>
+      <h3>整趟旅費估算</h3>
+      <p>
+        先回答幾題拿到粗估，想算準的項目再點開精算。
+        住宿、交通、餐食都能分配天數 —— 一天吃普一天吃好、租車只租三天，都算得出來。
+      </p>
+    </a>
+
+    <a class="tool is-move" href="travel/rental-car/">
+      <span class="tool-tag">交通</span>
+      <h3>自駕總成本 ＋ Expressway Pass</h3>
+      <p>
+        免責補償、高速費、停車費、異地還車 —— 這四筆是自己估預算時最常整筆忘掉的。
+        順便直接回答「這趟該不該買 Pass」，包含「不用買」這個答案。
+      </p>
+    </a>
+
+    <a class="tool is-stay" href="travel/accommodation/">
+      <span class="tool-tag">住宿</span>
+      <h3>住宿實付金額 ＋ 宿泊稅</h3>
+      <p>
+        訂房網站顯示的價格不是你最後付的錢。宿泊稅各市不同、還分房價級距，而且現場才付。
+        另外分清楚哪些是按房賣、哪些是按人頭賣 —— 看錯就差一倍。
+      </p>
+    </a>
+
+    <a class="tool is-move" href="travel/jr-pass/">
+      <span class="tool-tag">交通</span>
+      <h3>JR Pass 值不值得買</h3>
+      <p>
+        勾出會搭的長程區間直接比價，所有方案並排顯示。
+        另外算上 Pass <b>蓋不到</b>的私鐵、巴士與纜車 —— 那是最多人誤會的地方。
+      </p>
+    </a>
+
+    <span class="tool soon">
+      <span class="tool-tag">準備中</span>
+      <h3>退稅金額試算</h3>
+      <p>2026/11 新制上路的リファンド方式，門檻與退款比例試算。</p>
+    </span>
+
+  </div>
+
+  <h2 class="sec-hd">居住</h2>
+  <div class="tools">
+    <span class="tool soon">
+      <span class="tool-tag">準備中</span>
+      <h3>租屋初期費用</h3>
+      <p>敷金、礼金、仲介手数料、保証会社 —— 加起來常常是月租的好幾倍。</p>
+    </span>
+    <span class="tool soon">
+      <span class="tool-tag">準備中</span>
+      <h3>手取り試算</h3>
+      <p>時薪或年收扣完稅與社會保險之後，實際拿到多少。</p>
+    </span>
+  </div>
+
+  <h2 class="sec-hd">匯率與稅務</h2>
+  <div class="tools">
+    <span class="tool soon">
+      <span class="tool-tag">準備中</span>
+      <h3>日圓台幣換算</h3>
+      <p>即時匯率，並標示現鈔、刷卡、海外提款的實際價差。</p>
+    </span>
+  </div>
+
+  <section class="card" style="margin-top:8px">
+    <h2>這些工具跟別的有什麼不一樣</h2>
+    <p style="font-size:15.5px;margin:0 0 12px">
+      <b>只做「你自己算不出來」的部分。</b>
+      加總跟除以人數，手機計算機就能做。真正麻煩的是各地不同的稅、
+      藏在細項裡的保險費、以及「這張票券到底該不該買」這種需要比價才知道的決定。
+    </p>
+    <p style="font-size:15.5px;margin:0 0 12px">
+      <b>會告訴你這個數字有多準。</b>
+      用平均值推出來的和逐項算出來的，畫面上分得清清楚楚。
+      有些項目（像餐費）我們沒有比你更準的資訊，那就明說不做精算 ——
+      硬做一個只會製造假的精確感。
+    </p>
+    <p style="font-size:15.5px;margin:0">
+      <b>費率會標更新日期。</b>
+      日本的稅制和票價每年都在調，過期的計算器比沒有還糟。
+      每一項費率都記錄了查證日與下次複查日。
+    </p>
+  </section>
+
+  <p class="meta">
+    資料以日本官方與業者公告為準，僅供行前抓預算參考，實際金額以現場為準。<br>
+    費率查證進度與更新排程見 <code>README.md</code>。
+  </p>
+
+</div>
+
+</body>
+</html>
