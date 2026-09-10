@@ -399,3 +399,18 @@ input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-of
 .tool.soon .tool-tag{color:var(--ink-3);background:#eef1f4}
 .sec-hd{font-size:14px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;
   margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+
+/* 精算模式：一段住宿一個區塊（不同段可能在不同城市，稅不一樣） */
+.stay-seg + .stay-seg{margin-top:18px;padding-top:18px;border-top:1px dashed var(--line)}
+.seg-hd{font-size:14px;font-weight:700;color:var(--c-stay);margin:0 0 12px;
+  display:flex;align-items:baseline;gap:8px}
+.seg-hd span{font-size:12px;font-weight:400;color:var(--ink-3)}
+
+/* 類型名稱可點：點了＝整趟都住這類。不另外加勾選框，塞不下也不好按。 */
+.mix-nm{cursor:pointer;border-radius:5px;margin:-2px -3px 4px;padding:2px 3px;
+  transition:background .12s,color .12s}
+.mix-nm:hover{background:var(--tint-blue);color:var(--blue-ink)}
+.mix-row.is-stay .mix-nm:hover{background:var(--c-stay-bg);color:var(--c-stay)}
+.mix-row.is-food .mix-nm:hover{background:var(--c-food-bg);color:var(--c-food)}
+.mix-hint{font-size:12.5px;color:var(--ink-3);line-height:1.7;margin:0 0 10px}
+.mix-hint b{color:var(--ink-2)}

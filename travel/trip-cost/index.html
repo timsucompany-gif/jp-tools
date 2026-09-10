@@ -26,7 +26,7 @@
   ============================================================
 -->
 
-<link rel="stylesheet" href="../../shared/calc.css?v=20261101">
+<link rel="stylesheet" href="../../shared/calc.css?v=20261102">
 </head>
 <body>
 
@@ -129,6 +129,9 @@
         <label class="tog"><input type="checkbox" id="d-stay"><span class="box"></span>精算</label>
       </div>
       <div class="cat-body" id="simple-stay">
+        <p class="mix-hint">
+          <b>點類型名稱</b>＝整趟都住這類；要混搭就直接改各自的晚數。
+        </p>
         <div class="mix" id="mix-stay"></div>
         <p class="mix-sum" id="sum-stay"></p>
         <p class="hint" id="h-stay"></p>
@@ -138,9 +141,7 @@
           <input type="number" id="ex-stay-v" min="0" step="500" value="0" inputmode="numeric">
         </div>
       </div>
-      <div class="detail-body" id="detail-stay" hidden>
-        <div id="mod-stay"></div>
-      </div>
+      <div class="detail-body" id="detail-stay" hidden></div>
     </div>
 
     <!-- 交通 -->
@@ -187,6 +188,9 @@
         </label>
       </div>
       <div class="cat-body">
+        <p class="mix-hint">
+          <b>點等級名稱</b>＝整趟都吃這個；一天吃普一天吃好就直接改天數。
+        </p>
         <div class="mix" id="mix-food"></div>
         <p class="mix-sum" id="sum-food"></p>
         <p class="hint">
@@ -240,11 +244,11 @@
 
 </div>
 
-<script src="../../shared/rates.js?v=20261101"></script>
-<script src="../../shared/core.js?v=20261101"></script>
-<script src="../../shared/rental-module.js?v=20261101"></script>
-<script src="../../shared/lodging-module.js?v=20261101"></script>
-<script src="../../shared/rail-module.js?v=20261101"></script>
+<script src="../../shared/rates.js?v=20261102"></script>
+<script src="../../shared/core.js?v=20261102"></script>
+<script src="../../shared/rental-module.js?v=20261102"></script>
+<script src="../../shared/lodging-module.js?v=20261102"></script>
+<script src="../../shared/rail-module.js?v=20261102"></script>
 <script>
 (function () {
   "use strict";
@@ -353,19 +357,40 @@
     onChange: function (res) { railRes = res; paint(); }
   });
 
-  var stayRes = null;
-  var modStay = JPLodgingModule.mount($("mod-stay"), {
-    standalone: false,      /* 人數／晚數由步驟 2 注入 */
-    showHero: false,
-    onChange: function (res) {
-      stayRes = res;
-      /* 精算裡改了住宿類型 → 同步回簡單模式的選項，
-         這樣關掉精算時不會跳回不相干的類型 */
-      var t = $("lm-type");
-      if (t && $("stay-" + t.value)) $("stay-" + t.value).checked = true;
-      paint();
-    }
+  /* ---------- 住宿精算：一種住宿一個實例 ----------
+     簡單模式支援混搭（3 晚 Airbnb ＋ 1 晚溫泉），精算就不能只算一種。
+     而且兩段常常在不同城市，宿泊稅完全不一樣 —— 非拆不可。
+     五個實例一次建好、用不到的隱藏，不做動態建立與銷毀（省掉狀態遺失與記憶體累積）。 */
+  var stayMods = {}, stayResults = {};
+  Object.keys(R.lodging).forEach(function (k) {
+    var seg = document.createElement("div");
+    seg.className = "stay-seg";
+    seg.id = "seg-" + k;
+    seg.hidden = true;
+    var hd = document.createElement("h4");
+    hd.className = "seg-hd";
+    seg.appendChild(hd);
+    var inner = document.createElement("div");
+    seg.appendChild(inner);
+    $("detail-stay").appendChild(seg);
+
+    stayMods[k] = JPLodgingModule.mount(inner, {
+      id: "st-" + k,
+      standalone: false,      /* 人數／晚數由步驟 2 與分配欄注入 */
+      fixedType: k,
+      showHero: false,
+      onChange: function (res) { stayResults[k] = res; requestPaint(); }
+    });
   });
+
+  /* 五個實例會各自觸發 onChange，不合併的話一次輸入要重畫五遍。
+     用 microtask 收斂成一次。 */
+  var paintQueued = false;
+  function requestPaint() {
+    if (paintQueued) return;
+    paintQueued = true;
+    Promise.resolve().then(function () { paintQueued = false; paint(); });
+  }
 
   /* ---------- 主計算 ---------- */
   function paint() {
@@ -389,9 +414,26 @@
     var stayExtra = extraOf("stay");
     var stayBase, mealCover = 0;
 
-    if (detailStay && stayRes) {
-      stayBase = stayRes.total;
-      mealCover = stayRes.mealCover;
+    if (detailStay) {
+      stayBase = 0;
+      var coveredNights = 0, coverSum = 0;
+      Object.keys(R.lodging).forEach(function (k) {
+        var n = stayMix[k] || 0;
+        var seg = $("seg-" + k);
+        seg.hidden = (n <= 0);
+        if (n <= 0) return;
+        seg.querySelector(".seg-hd").innerHTML =
+          R.lodging[k].label + " <span>" + n + " 晚</span>";
+        var r = stayResults[k];
+        if (r) {
+          stayBase += r.total;
+          coverSum += r.mealCover * n;
+          coveredNights += n;
+        }
+      });
+      /* 含餐折抵按晚數加權 —— 只有其中一段含餐時不能整趟都折 */
+      mealCover = coveredNights > 0 ? coverSum / coveredNights : 0;
+      $("h-stay").textContent = "";
     } else {
       stayBase = C.lodgingMix(stayMix, ppl);
       var used = Object.keys(stayMix).filter(function (k) { return stayMix[k] > 0; });
@@ -484,9 +526,11 @@
         conf: blend(stayBase, stayExtra, detailStay ? R.confidence.detail : R.confidence.simple),
         detailed: detailStay, available: true,
         note: withExtra(
-          (detailStay && stayRes ? R.lodging[$("lm-type").value].label + "（含宿泊稅）"
-                                 : (Object.keys(stayMix).filter(function (k) { return stayMix[k] > 0; }).length > 1
-                                     ? "混搭住宿" : R.lodging[stayKey].label)) +
+          (function () {
+            var used = Object.keys(stayMix).filter(function (k) { return stayMix[k] > 0; });
+            var base = (used.length > 1) ? "混搭 " + used.length + " 種住宿" : R.lodging[stayKey].label;
+            return detailStay ? base + "（含宿泊稅）" : base;
+          })() +
           " · " + C.mixDays(stayMix) + " 晚 · " + ppl + " 人", "stay", stayExtra) },
 
       { nm: "交通", amt: move,
@@ -656,10 +700,13 @@
       people: ppl, fx: num("w-fx", 0)
     });
     modRail.setContext({ people: ppl, region: $("w-region").value, tripDays: days });
-    modStay.setContext({
-      people: ppl,
-      nights: Math.max(0, days - 1),
-      city: R.region[$("w-region").value].taxCity
+    var allNights = Math.max(0, days - 1);
+    var mixNow = readMix("stay", R.lodging);
+    var anyAllocated = C.mixDays(mixNow) > 0;
+    var city = R.region[$("w-region").value].taxCity;
+    Object.keys(R.lodging).forEach(function (k) {
+      var n = anyAllocated ? (mixNow[k] || 0) : (k === STAY_DEFAULT ? allNights : 0);
+      stayMods[k].setContext({ people: ppl, nights: n, city: city });
     });
     /* setContext 會觸發模組的 onChange，paint 由那裡呼叫 */
   }
@@ -668,6 +715,27 @@
   Array.prototype.forEach.call(document.querySelectorAll('input[name="move"]'), function (e) {
     e.addEventListener("change", function () { C.beginAnim(["move", "total"]); paint(); });
   });
+
+  /* 點類型名稱 = 整趟都是這一類。
+     不在每格塞勾選框 —— 五個格子本來就窄，再加元件會擠爆，
+     而且「整趟都住同一類」是最常見的情況，值得用最省空間的方式做。 */
+  function bindFillAll(name, data, unitFn) {
+    Object.keys(data).forEach(function (k) {
+      var lbl = document.querySelector('#mix-' + name + ' .mix-row[data-k="' + k + '"] .mix-nm');
+      if (!lbl) return;
+      lbl.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        mixTouched[name] = true;
+        var total = unitFn();
+        Object.keys(data).forEach(function (k2) {
+          var f = $(name + "-" + k2);
+          if (f) f.value = (k2 === k) ? total : 0;
+        });
+        C.beginAnim([name, "total"]);
+        if (name === "stay") pushCtx(); else paint();
+      });
+    });
+  }
 
   /* 分配欄位：動到就標記 touched，之後改行程天數不再自動覆蓋 */
   [["stay", R.lodging], ["food", R.food]].forEach(function (pair) {
@@ -678,9 +746,16 @@
       el.addEventListener("input", function () {
         mixTouched[name] = true;
         C.beginAnim([name, "total"]);
-        paint();
+        if (name === "stay") pushCtx(); else paint();
       });
     });
+  });
+
+  bindFillAll("stay", R.lodging, function () {
+    return Math.max(0, Math.round(num("w-days", 5)) - 1);   /* 晚數 = 天數 − 1 */
+  });
+  bindFillAll("food", R.food, function () {
+    return Math.max(1, Math.round(num("w-days", 5)));
   });
 
   /* 租車天數 */
