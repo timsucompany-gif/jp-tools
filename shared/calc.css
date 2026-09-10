@@ -400,11 +400,37 @@ input[type=number].mix-n:focus-visible{outline:2px solid currentColor;outline-of
 .sec-hd{font-size:14px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;
   margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 
-/* 精算模式：一段住宿一個區塊（不同段可能在不同城市，稅不一樣） */
-.stay-seg + .stay-seg{margin-top:18px;padding-top:18px;border-top:1px dashed var(--line)}
-.seg-hd{font-size:14px;font-weight:700;color:var(--c-stay);margin:0 0 12px;
-  display:flex;align-items:baseline;gap:8px}
-.seg-hd span{font-size:12px;font-weight:400;color:var(--ink-3)}
+/* ============================================================
+   精算模式：一段住宿一列，摺疊
+   ------------------------------------------------------------
+   分段是為了算對（不同城市稅不同），不是為了佔版面。
+   四段全部攤開會變成四個螢幕高，所以預設收合成一列，
+   並把「城市」提到列上 —— 那是分段最主要的理由，不該藏在展開裡。
+   ============================================================ */
+.stay-seg{border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;margin:0 0 8px}
+.stay-seg.open{border-color:var(--c-stay)}
+.seg-hd{display:flex;align-items:center;gap:10px;padding:9px 12px;flex-wrap:wrap}
+.seg-toggle{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px;
+  background:none;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;color:var(--c-stay)}
+.seg-toggle:focus-visible{outline:2px solid var(--c-stay);outline-offset:3px;border-radius:4px}
+.seg-caret{flex:none;font-size:11px;transition:transform .15s;display:inline-block}
+.stay-seg.open .seg-caret{transform:rotate(90deg)}
+.seg-name{font-size:14.5px;font-weight:700;white-space:nowrap}
+.seg-nights{font-size:12px;color:var(--ink-3);font-weight:400}
+.seg-city{flex:0 0 auto}
+.seg-city select{width:auto;min-width:120px;font-size:13.5px;padding:5px 8px}
+.seg-sub{flex:0 0 auto;font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;
+  margin-left:auto;text-align:right;white-space:nowrap}
+.seg-sub .twd{display:block;font-size:11px}
+.seg-body{padding:2px 12px 14px;border-top:1px dashed var(--line);margin-top:2px}
+@media (max-width:520px){
+  /* 窄螢幕：類型與小計留在第一行（那是掃視時要看的），
+     城市下拉換到第二行占滿寬度。三行會讓收合列比展開還礙眼。 */
+  .seg-hd{gap:6px 10px}
+  .seg-sub{margin-left:auto;flex:0 0 auto;text-align:right}
+  .seg-city{flex:1 1 100%;order:3}
+  .seg-city select{width:100%;min-width:0}
+}
 
 /* 類型名稱可點：點了＝整趟都住這類。不另外加勾選框，塞不下也不好按。 */
 .mix-nm{cursor:pointer;border-radius:5px;margin:-2px -3px 4px;padding:2px 3px;

@@ -26,7 +26,7 @@
   ============================================================
 -->
 
-<link rel="stylesheet" href="../../shared/calc.css?v=20261102">
+<link rel="stylesheet" href="../../shared/calc.css?v=20261104">
 </head>
 <body>
 
@@ -244,11 +244,11 @@
 
 </div>
 
-<script src="../../shared/rates.js?v=20261102"></script>
-<script src="../../shared/core.js?v=20261102"></script>
-<script src="../../shared/rental-module.js?v=20261102"></script>
-<script src="../../shared/lodging-module.js?v=20261102"></script>
-<script src="../../shared/rail-module.js?v=20261102"></script>
+<script src="../../shared/rates.js?v=20261104"></script>
+<script src="../../shared/core.js?v=20261104"></script>
+<script src="../../shared/rental-module.js?v=20261104"></script>
+<script src="../../shared/lodging-module.js?v=20261104"></script>
+<script src="../../shared/rail-module.js?v=20261104"></script>
 <script>
 (function () {
   "use strict";
@@ -328,6 +328,7 @@
   }
 
   var STAY_DEFAULT = "airbnb", FOOD_DEFAULT = "normal";
+  var segAutoDone = false;
   var carDaysTouched = false;
 
   var reduceMotion = !!(window.matchMedia &&
@@ -361,25 +362,57 @@
      簡單模式支援混搭（3 晚 Airbnb ＋ 1 晚溫泉），精算就不能只算一種。
      而且兩段常常在不同城市，宿泊稅完全不一樣 —— 非拆不可。
      五個實例一次建好、用不到的隱藏，不做動態建立與銷毀（省掉狀態遺失與記憶體累積）。 */
-  var stayMods = {}, stayResults = {};
+  var stayMods = {}, stayResults = {}, staySegs = {};
   Object.keys(R.lodging).forEach(function (k) {
     var seg = document.createElement("div");
     seg.className = "stay-seg";
     seg.id = "seg-" + k;
     seg.hidden = true;
-    var hd = document.createElement("h4");
-    hd.className = "seg-hd";
-    seg.appendChild(hd);
-    var inner = document.createElement("div");
-    seg.appendChild(inner);
-    $("detail-stay").appendChild(seg);
 
-    stayMods[k] = JPLodgingModule.mount(inner, {
+    /* 摺疊列：類型、晚數、城市、小計。
+       城市直接放在列上 —— 分段最主要的理由就是「不同段在不同城市」，
+       把它藏在展開裡等於白拆。 */
+    var hd = document.createElement("div");
+    hd.className = "seg-hd";
+    hd.innerHTML =
+      '<button type="button" class="seg-toggle">' +
+        '<span class="seg-caret">▶</span>' +
+        '<span class="seg-name"></span>' +
+        '<span class="seg-nights"></span>' +
+      "</button>" +
+      '<span class="seg-city"></span>' +
+      '<span class="seg-sub">—</span>';
+
+    var body = document.createElement("div");
+    body.className = "seg-body";
+    body.hidden = true;
+
+    seg.appendChild(hd);
+    seg.appendChild(body);
+    $("detail-stay").appendChild(seg);
+    staySegs[k] = seg;
+
+    stayMods[k] = JPLodgingModule.mount(body, {
       id: "st-" + k,
       standalone: false,      /* 人數／晚數由步驟 2 與分配欄注入 */
       fixedType: k,
       showHero: false,
       onChange: function (res) { stayResults[k] = res; requestPaint(); }
+    });
+
+    /* 把模組裡的城市下拉搬到摺疊列上。
+       搬移 DOM 節點會保留事件監聽，所以模組的邏輯完全不用改。 */
+    var citySel = $("st-" + k + "-city");
+    if (citySel) {
+      var wrap = citySel.parentElement;
+      hd.querySelector(".seg-city").appendChild(citySel);
+      wrap.hidden = true;
+    }
+
+    hd.querySelector(".seg-toggle").addEventListener("click", function () {
+      var open = body.hidden;
+      body.hidden = !open;
+      seg.classList.toggle("open", open);
     });
   });
 
@@ -417,20 +450,34 @@
     if (detailStay) {
       stayBase = 0;
       var coveredNights = 0, coverSum = 0;
+      var shown = [];
       Object.keys(R.lodging).forEach(function (k) {
         var n = stayMix[k] || 0;
-        var seg = $("seg-" + k);
+        var seg = staySegs[k];
         seg.hidden = (n <= 0);
         if (n <= 0) return;
-        seg.querySelector(".seg-hd").innerHTML =
-          R.lodging[k].label + " <span>" + n + " 晚</span>";
+        shown.push(k);
+        seg.querySelector(".seg-name").textContent = R.lodging[k].label;
+        seg.querySelector(".seg-nights").textContent = n + " 晚";
         var r = stayResults[k];
         if (r) {
+          C.setAmt(seg.querySelector(".seg-sub"), r.total, null, "stay:seg:" + k);
           stayBase += r.total;
           coverSum += r.mealCover * n;
           coveredNights += n;
         }
       });
+
+      /* 只有一段就直接展開（沒有什麼好選的）；多段一律收合，
+         先讓人看得到整體比較，要調哪一段再點開。 */
+      if (!segAutoDone && shown.length) {
+        segAutoDone = true;
+        var only = (shown.length === 1);
+        shown.forEach(function (k) {
+          staySegs[k].querySelector(".seg-body").hidden = !only;
+          staySegs[k].classList.toggle("open", only);
+        });
+      }
       /* 含餐折抵按晚數加權 —— 只有其中一段含餐時不能整趟都折 */
       mealCover = coveredNights > 0 ? coverSum / coveredNights : 0;
       $("h-stay").textContent = "";
@@ -782,7 +829,11 @@
   });
 
   $("d-move").addEventListener("change", function () { C.beginAnim(["move", "total"]); paint(); });
-  $("d-stay").addEventListener("change", function () { C.beginAnim(["stay", "total"]); paint(); });
+  $("d-stay").addEventListener("change", function () {
+    segAutoDone = false;   /* 每次重新打開精算，重新判斷要不要自動展開 */
+    C.beginAnim(["stay", "total"]);
+    paint();
+  });
 
   /* 匯率：預設值先上，即時匯率抓到再覆蓋；抓不到也不影響其他計算 */
   C.initCurrency("curSeg", function () { C.beginAnim(["stay", "move", "food", "total"]); pushCtx(); });
